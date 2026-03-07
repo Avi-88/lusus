@@ -46,7 +46,7 @@ func (ls *LususStore) Get(key string) (string, bool) {
 	it, ok := ls.data[key]
 	if !ok {
 		return "", false
-	} else if time.Now().After(it.expiresAt) {
+	} else if !it.expiresAt.IsZero() && time.Now().After(it.expiresAt) {
 		ls.mu.RUnlock()
 		ls.mu.Lock()
 		delete(ls.data, key)
