@@ -1,4 +1,4 @@
-package lusus 
+package store 
 
 import (
 	"time"
