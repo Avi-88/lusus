@@ -11,7 +11,7 @@ import (
 
 func main() {
 
-	s := store.NewLususStore()
+	s := store.NewLususStore("demoDB")
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -59,9 +59,9 @@ func main() {
 			}
 			fmt.Println("Value:", val)
 		
-		case "DELETE":
+		case "DEL":
 			if len(args) != 2 {
-				fmt.Println("Usage DELETE <key>")
+				fmt.Println("Usage DEL <key>")
 				continue
 			}
 			err := s.Delete(args[1])
