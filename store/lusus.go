@@ -97,7 +97,11 @@ func (ls *LususStore) Set(key, value string, ttl ...int) error {
 		expiresAt: expiresAt,
 	}
 	if ls.aofFile != nil {
-		fmt.Fprintf(ls.aofFile, "SET %s %s\r\n", key, EscapeNewlines(value))
+		if len(ttl) > 0 {
+			fmt.Fprintf(ls.aofFile, "SET %s %s %d\r\n", key, EscapeNewlines(value), ttl[0])
+		}else{
+			fmt.Fprintf(ls.aofFile, "SET %s %s\r\n", key, EscapeNewlines(value))
+		}
 	}
 	return nil
 }
