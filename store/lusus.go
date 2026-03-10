@@ -54,11 +54,17 @@ func (ls *LususStore) loadAOF(aofFilename string) error {
 	for scanner.Scan(){
 		line := scanner.Text()
 		parts := strings.SplitN(line, " ", 4)
+		if len(parts) < 2 {
+			continue
+		}
 		cmd := strings.ToUpper(parts[0])
 		key:= parts[1]
 		switch cmd {
 		case "SET":
-			val := UnescapeNewlines(parts[2])
+			var val string
+			if len(parts) >= 3 {
+				val = UnescapeNewlines(parts[2])
+			}
 			if len(parts) == 4 {
 				if ttl, err := strconv.Atoi(parts[3]); err == nil {
 					ls.data[key] = item{
@@ -116,17 +122,15 @@ func (ls *LususStore) Set(key, value string, ttl ...int) error {
 }
 
 func (ls *LususStore) Get(key string) (string, bool) {
-	ls.mu.RLock()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	it, ok := ls.data[key]
-	ls.mu.RUnlock()
 	if !ok {
 		return "", false
 	} 
 	
 	if !it.expiresAt.IsZero() && time.Now().After(it.expiresAt) {
-		ls.mu.Lock()
 		delete(ls.data, key)
-		ls.mu.Unlock()
 		return "", false
 	}
 	return it.value, true
@@ -169,9 +173,9 @@ func (ls *LususStore) Expire(key string, ttl int) bool {
 }
 
 func (ls *LususStore) TTL(key string) int {
-	ls.mu.RLock()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	entry, ok := ls.data[key]
-	ls.mu.RUnlock()
 	if !ok {
 		return -2
 	}
@@ -180,9 +184,7 @@ func (ls *LususStore) TTL(key string) int {
 	}
 	rem := int(time.Until(entry.expiresAt).Seconds())
 	if rem <=0 {
-		ls.mu.Lock()
 		delete(ls.data,key)
-		ls.mu.Unlock()
 		return -2
 	}
 	return rem
