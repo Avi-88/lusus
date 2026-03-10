@@ -27,7 +27,7 @@ func main() {
 		switch operation {
 		case "SET":
 			if len(args) < 3 || len(args) > 4 {
-				fmt.Println("Usage PUT <key> <value> [optional]<ttl_sec>")
+				fmt.Println("Usage SET <key> <value> [optional]<ttl_sec>")
 				continue
 			} 
 			var err error
@@ -71,6 +71,37 @@ func main() {
 				fmt.Println("Key deleted")
 			}
 
+		case "EXPIRE":
+			if len(args) != 3 {
+				fmt.Println("Usage EXPIRE <key> <ttl_sec>")
+				continue
+			}
+			ttl, parseErr := strconv.Atoi(args[2])
+			if parseErr != nil {
+				fmt.Println("Invalid TTL")
+				continue
+			}
+			ok := s.Expire(args[1], ttl)
+			if !ok {
+				fmt.Println("Key not found or already expired")
+				continue
+			}
+			fmt.Println("Key expiry set")
+
+		case "TTL":
+			if len(args) != 2 {
+				fmt.Println("Usage TTL <key>")
+				continue
+			}
+			out := s.TTL(args[1])
+			switch out {
+			case -2:
+				fmt.Println("Key not found")
+			case -1:
+				fmt.Println("Key not set to expire")
+			default:
+				fmt.Printf("Key expires in %d secs\n", out)
+			}
 		case "EXIT":
 			fmt.Println("Exiting CLI")
 			return

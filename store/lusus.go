@@ -76,6 +76,15 @@ func (ls *LususStore) loadAOF(aofFilename string) error {
 			if len(parts) >= 2 {
 				delete(ls.data, key)
 			}
+		case "EXPIRE":
+			if len(parts) == 3 {
+				if ttl, err := strconv.Atoi(parts[2]); err == nil {
+					if entry,ok := ls.data[key]; ok {
+						entry.expiresAt = time.Now().Add(time.Duration(ttl)*time.Second)
+						ls.data[key] = entry
+					}
+				}
+			}
 		}
 	}
 	return scanner.Err()
@@ -135,4 +144,46 @@ func (ls *LususStore) Delete(key string) error {
 		fmt.Fprintf(ls.aofFile, "DEL %s\r\n", key)
 	}
 	return nil
+}
+
+func (ls *LususStore) Expire(key string, ttl int) bool {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	entry, ok := ls.data[key]
+	if !ok {
+		return false
+	}
+	if ttl <= 0 {
+		delete(ls.data, key)
+		if ls.aofFile != nil {
+			fmt.Fprintf(ls.aofFile, "DEL %s\r\n", key)
+		}
+		return true
+	}
+	entry.expiresAt = time.Now().Add(time.Duration(ttl)*time.Second)
+	ls.data[key] = entry
+	if ls.aofFile != nil {
+		fmt.Fprintf(ls.aofFile, "EXPIRE %s %d\r\n", key, ttl)
+	}
+	return true
+}
+
+func (ls *LususStore) TTL(key string) int {
+	ls.mu.RLock()
+	entry, ok := ls.data[key]
+	ls.mu.RUnlock()
+	if !ok {
+		return -2
+	}
+	if entry.expiresAt.IsZero() {
+		return -1
+	}
+	rem := int(time.Until(entry.expiresAt).Seconds())
+	if rem <=0 {
+		ls.mu.Lock()
+		delete(ls.data,key)
+		ls.mu.Unlock()
+		return -2
+	}
+	return rem
 }
